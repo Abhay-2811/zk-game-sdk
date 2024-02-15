@@ -36,17 +36,21 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+Object.defineProperty(exports, "__esModule", { value: true });
+var process_1 = require("process");
+var child_process_1 = require("child_process");
 var inquirer = require('inquirer');
+var loading = require('loading-cli');
 function main() {
     return __awaiter(this, void 0, void 0, function () {
-        var movesAnswer, moves, circuitOptions, circuitAnswer, circuit;
+        var movesAnswer, moves, circuitOptions, circuitAnswer, circuit, load;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0: return [4 /*yield*/, inquirer.prompt([
                         {
                             type: 'input',
                             name: 'moves',
-                            message: 'Input moves (arg1 arg2):',
+                            message: 'Input moves (move1 move2 ..):',
                             validate: function (value) {
                                 // Basic validation to ensure at least two arguments are provided
                                 var moves = value.trim().split(' ');
@@ -57,18 +61,40 @@ function main() {
                 case 1:
                     movesAnswer = _a.sent();
                     moves = movesAnswer.moves.split(' ');
-                    circuitOptions = ['Choice 1', 'Choice 2', 'Choice 3'];
+                    circuitOptions = ['Noir', 'Circom', 'Halo 2'];
                     return [4 /*yield*/, inquirer.prompt([
                             {
                                 type: 'list',
                                 name: 'circuit',
-                                message: 'Choose circuit:',
-                                choices: circuitOptions,
+                                message: 'Choose zk circuit (only noir is available) :',
+                                choices: circuitOptions
                             }
                         ])];
                 case 2:
                     circuitAnswer = _a.sent();
                     circuit = circuitAnswer.circuit;
+                    // check if noir is selected as initially only noir will be supported
+                    if (circuit !== 'Noir') {
+                        console.error("Currently only Noir is supported");
+                        (0, process_1.exit)(1);
+                    }
+                    load = loading('');
+                    load.start("Building Noir Circuit in curcuits dir");
+                    //Install Noir Circuits
+                    (0, child_process_1.exec)(("nargo new circuit"), function (error, stdout, stderr) {
+                        if (error) {
+                            // console.log(chalk.red(`Error: ${error.message}`));
+                            load.fail(error.message);
+                            return;
+                        }
+                        if (stderr) {
+                            // console.log(chalk.red(`Stderr: ${stderr}`));
+                            load.fail(stderr);
+                            return;
+                        }
+                        // console.log(chalk.green(`${stdout}`));
+                        load.succeed("Curcuit successfully built");
+                    });
                     console.log('Moves:', moves);
                     console.log('Selected circuit:', circuit);
                     return [2 /*return*/];
