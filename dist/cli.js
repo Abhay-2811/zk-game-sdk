@@ -36,72 +36,95 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 var process_1 = require("process");
 var child_process_1 = require("child_process");
-var inquirer = require('inquirer');
-var loading = require('loading-cli');
+var chalk_1 = __importDefault(require("chalk"));
+var inquirer = require("inquirer");
+var loading = require("loading-cli");
+var fs = require("fs");
+var bytes32 = require("bytes32");
+var noir_main = function (moves) {
+    return "\n  // this is the main function that validates moves and generates verifiable proof \n  fn main(move: Field) {\n    // bytes32 array of allowed moves\n    let allowed_moves = [".concat(moves.map(function (move) { return bytes32({ input: move }); }), "];\n    let check = allowed_moves.any(|m| m == move);\n    assert(check);\n}\n");
+};
+var noir_recursive = function () {
+    return "\n    use dep::std;\n\n    fn main(\n        verification_key : [Field; 114], \n        proof : [Field; 93], \n        public_inputs : [Field; 1], \n        key_hash : Field,\n    ) {\n        std::verify_proof(\n            verification_key.as_slice(), \n            proof.as_slice(), \n            public_inputs.as_slice(), \n            key_hash,\n        );\n    }\n    ";
+};
 function main() {
     return __awaiter(this, void 0, void 0, function () {
-        var movesAnswer, moves, circuitOptions, circuitAnswer, circuit, load;
+        var movesAnswer, moves, circuitOptions, circuitAnswer, circuit, load1, load2, load3;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0: return [4 /*yield*/, inquirer.prompt([
                         {
-                            type: 'input',
-                            name: 'moves',
-                            message: 'Input moves (move1 move2 ..):',
+                            type: "input",
+                            name: "moves",
+                            message: "Input moves (move1 move2 ..):",
                             validate: function (value) {
                                 // Basic validation to ensure at least two arguments are provided
-                                var moves = value.trim().split(' ');
-                                return moves.length >= 2 ? true : 'Please provide at least two arguments.';
-                            }
-                        }
+                                var moves = value.trim().split(" ");
+                                return moves.length >= 2
+                                    ? true
+                                    : "Please provide at least two arguments.";
+                            },
+                        },
                     ])];
                 case 1:
                     movesAnswer = _a.sent();
-                    moves = movesAnswer.moves.split(' ');
-                    circuitOptions = ['Noir', 'Circom', 'Halo 2'];
+                    moves = movesAnswer.moves.split(" ");
+                    circuitOptions = ["Noir", "Circom", "Halo 2"];
                     return [4 /*yield*/, inquirer.prompt([
                             {
-                                type: 'list',
-                                name: 'circuit',
-                                message: 'Choose zk circuit (only noir is available) :',
-                                choices: circuitOptions
-                            }
+                                type: "list",
+                                name: "circuit",
+                                message: "Choose zk circuit (only noir is available) :",
+                                choices: circuitOptions,
+                            },
                         ])];
                 case 2:
                     circuitAnswer = _a.sent();
                     circuit = circuitAnswer.circuit;
                     // check if noir is selected as initially only noir will be supported
-                    if (circuit !== 'Noir') {
+                    if (circuit !== "Noir") {
                         console.error("Currently only Noir is supported");
                         (0, process_1.exit)(1);
                     }
-                    load = loading('');
-                    load.start("Building Noir Circuit in curcuits dir");
+                    load1 = loading("Building Noir Circuit in curcuits dir").start();
+                    load2 = loading("Writing into circuit/main").start();
+                    load3 = loading("Writing into circuit/recursive").start();
                     //Install Noir Circuits
-                    (0, child_process_1.exec)(("nargo new circuit"), function (error, stdout, stderr) {
+                    (0, child_process_1.exec)("nargo new circuit/main && nargo new circuit/recursive", function (error, stdout, stderr) {
                         if (error) {
-                            // console.log(chalk.red(`Error: ${error.message}`));
-                            load.fail(error.message);
+                            load1.fail(chalk_1.default.red(error.message));
                             return;
                         }
                         if (stderr) {
-                            // console.log(chalk.red(`Stderr: ${stderr}`));
-                            load.fail(stderr);
+                            load1.fail(stderr);
                             return;
                         }
-                        // console.log(chalk.green(`${stdout}`));
-                        load.succeed("Curcuit successfully built");
+                        load1.succeed("Circuit successfully built");
+                        //if success write/edit noir circuits
+                        fs.writeFile("circuit/main/src/main.nr", noir_main(moves), function (err) {
+                            if (err) {
+                                load2.fail(err);
+                            }
+                            load2.succeed("Successfully written into circuit/main");
+                        });
+                        fs.writeFile("circuit/recursive/src/main.nr", noir_recursive(), function (err) {
+                            if (err) {
+                                load2.fail(err);
+                            }
+                            load2.succeed("Successfully written into circuit/recursive");
+                        });
                     });
-                    console.log('Moves:', moves);
-                    console.log('Selected circuit:', circuit);
                     return [2 /*return*/];
             }
         });
     });
 }
 main().catch(function (error) {
-    console.error('An error occurred:', error);
+    console.error(chalk_1.default.red("An error occurred:", error));
 });

@@ -18,6 +18,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "bytes32": "^0.0.3",
     "chalk": "4.1.2",
     "inquirer": "^8.2.6",
     "loading-cli": "^1.1.2",
